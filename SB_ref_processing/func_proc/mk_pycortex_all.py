@@ -266,8 +266,43 @@ for i in range(len(z_RLupper_data1D)):
 z_RLupper_thresh = np.reshape(data_threshed_up,RLupper_zscore.shape) #back to original shape
 z_RLlower_thresh = np.reshape(data_threshed_down,RLlower_zscore.shape)
 
-#
+# combine 3 body part maps, threshold values
+face1D = face_zscore.ravel()
+upper1D = upper_zscore.ravel()
+lower1D = lower_zscore.ravel()
 
+soma_labels_1D = np.zeros(face_zscore.ravel().shape) # set at 0 whatever is outside thresh
+soma_zval_1D = np.zeros(face_zscore.ravel().shape) # set at 0 whatever is outside thresh
+
+for i in range(len(soma_labels_1D)):#all_soma_1D)):
+    
+    zvals = [face1D[i],upper1D[i],lower1D[i]]
+    max_zvals = max(zvals)
+    
+    if max_zvals>z_threshold: #if bigger than thresh
+        soma_zval_1D[i] = max_zvals #take max value for voxel, that will be the label shown
+
+        if np.argmax(zvals) == 0:
+            soma_labels_1D[i] = 0.1 #0.3 #0.2 #face = red
+        elif np.argmax(zvals) == 1:
+            soma_labels_1D[i] = 0.5 #upper = orange
+        elif np.argmax(zvals) == 2:
+            soma_labels_1D[i] = 0.9 # 0.7 #0.8 #lower = yellow
+
+soma_labels = np.reshape(soma_labels_1D,face_zscore.shape) #back to original shape   
+soma_zvals = np.reshape(soma_zval_1D,face_zscore.shape) #back to original shape       
+
+#
+# NOT WORKING PROPERLY, NEED TO FIGURE OUT HOW TO ADD ALPHA CHANNEL
+#
+## set colormap for combined body parts (red,orange,yellow)
+#base = cortex.utils.get_cmap('autumn')
+#val = base(np.linspace(0, 1,3))
+#colmap = colors.ListedColormap(val)
+#
+## add colormap to pycortex folder
+#cortex.utils.add_cmap(colmap, 'my_autumn', cmapdir=None) 
+#
 
 # volume for face, upper and lower limb zscore
 v_face =  cortex.Volume(face_zscore.T, 'sub-'+sub_num, 'fmriprep_T1',
@@ -287,11 +322,16 @@ rl_lower = cortex.Volume(z_RLlower_thresh.T, 'sub-'+sub_num, 'fmriprep_T1',
                          vmin=-z_RLlower_thresh.max(), vmax=z_RLlower_thresh.max(),
                          cmap='bwr')
 
+# all somas combined
+v_combined = cortex.Volume2D(soma_labels.T, soma_zvals.T, 'sub-'+sub_num, 'fmriprep_T1',
+                           vmin=0, vmax=1,
+                           vmin2=-1, vmax2=soma_zvals.max(), cmap='autumnblack_alpha_2D')#BROYG_2D')#'my_autumn')
+
 #convert into a `Dataset`
 DS = cortex.Dataset(polar=vrgba, ecc=vecc, size=vsize, 
                     amplitude=vbeta, baseline=vbaseline, rsq=vrsq, mean_epi=mean_epi,
                     face=v_face,upper_limb=v_upper,lower_limb=v_lower,
-                    RvsL_upper=rl_upper,RvsL_lower=rl_lower)
+                    RvsL_upper=rl_upper,RvsL_lower=rl_lower,comb_FUL=v_combined)
 # save in prf params dir
 #DS.save(os.path.join(output_dir, 'pycortex_ds.h5'))
 
