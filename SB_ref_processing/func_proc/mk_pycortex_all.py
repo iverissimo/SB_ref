@@ -108,6 +108,7 @@ if not os.path.exists(median_dir+median_epi_file): #if file doesn't exist
 
 # params
 rsq_threshold = 0.2
+z_threshold = 3.1 #2
      
 # for registration into pycortex
 
@@ -229,18 +230,16 @@ vbaseline = cortex.Volume2D(baseline.T, rsq.T, 'sub-'+sub_num, 'fmriprep_T1',
                            vmin2=rsq_threshold, vmax2=1.0, cmap='RdBu_r_alpha')
 
 # volume for rsq
-vrsq = cortex.Volume2D(rsq.T, rsq.T, 'sub-'+sub_num, 'fmriprep_T1',
-                           vmin=0, vmax=0.8,
-                           vmin2=rsq_threshold, vmax2=1.0, cmap='fire_alpha')
+vrsq = cortex.Volume(rsq.T, 'sub-'+sub_num, 'fmriprep_T1',
+                     vmin=rsq_threshold, vmax=1.0, cmap='Reds')
 
 # volume for mean(median) and normalized epi for veins etc.
 mean_epid = nb.load(median_dir+median_epi_file).get_data().T
-mean_epid /= mean_epid.max()
-mean_epi = cortex.Volume(mean_epid, 'sub-'+sub_num, 'fmriprep_T1',
-                           vmin=mean_epid.min(), vmax=mean_epid.max(),
-                           cmap='cubehelix')
-
-
+norm_mean_epid =(mean_epid - mean_epid.min())/(mean_epid.max()- mean_epid.min())
+mean_epi = cortex.Volume(norm_mean_epid, 'sub-'+sub_num, 'fmriprep_T1',
+                         vmin=norm_mean_epid.min(), vmax=norm_mean_epid.max(),
+                         cmap='cubehelix')
+                           
 # somatotopy
 
 face_zscore = nb.load(face_file).get_data()
@@ -250,7 +249,25 @@ lower_zscore = nb.load(lower_file).get_data()
 RLupper_zscore = nb.load(RLupper_file).get_data()
 RLlower_zscore = nb.load(RLlower_file).get_data()
 
-z_threshold = 2#3.1
+# threshold left vs right, to only show relevant voxel
+z_RLupper_data1D = RLupper_zscore.ravel()
+z_RLlower_data1D = RLlower_zscore.ravel()
+
+data_threshed_up=np.zeros(z_RLupper_data1D.shape) # set at 0 whatever is outside thresh
+data_threshed_down=np.zeros(z_RLlower_data1D.shape)
+
+for i in range(len(z_RLupper_data1D)):
+    if z_RLupper_data1D[i] < -z_threshold or z_RLupper_data1D[i] > z_threshold:
+        data_threshed_up[i]=z_RLupper_data1D[i]
+    
+    if z_RLlower_data1D[i] < -z_threshold or z_RLlower_data1D[i] > z_threshold:
+        data_threshed_down[i]=z_RLlower_data1D[i]
+
+z_RLupper_thresh = np.reshape(data_threshed_up,RLupper_zscore.shape) #back to original shape
+z_RLlower_thresh = np.reshape(data_threshed_down,RLlower_zscore.shape)
+
+#
+
 
 # volume for face, upper and lower limb zscore
 v_face =  cortex.Volume(face_zscore.T, 'sub-'+sub_num, 'fmriprep_T1',
@@ -263,10 +280,12 @@ v_lower =  cortex.Volume(lower_zscore.T, 'sub-'+sub_num, 'fmriprep_T1',
                            vmin=z_threshold, vmax=lower_zscore.max(),
                            cmap='OrRd')
 # left vs right
-rl_upper = cortex.Volume(RLupper_zscore.T, 'sub-'+sub_num, 'fmriprep_T1',
-                           cmap='BuWtRd')
-rl_lower = cortex.Volume(RLlower_zscore.T, 'sub-'+sub_num, 'fmriprep_T1',
-                           cmap='BuWtRd')
+rl_upper = cortex.Volume(z_RLupper_thresh.T, 'sub-'+sub_num, 'fmriprep_T1',
+                         vmin=-z_RLupper_thresh.max(), vmax=z_RLupper_thresh.max(),
+                         cmap='bwr')
+rl_lower = cortex.Volume(z_RLlower_thresh.T, 'sub-'+sub_num, 'fmriprep_T1',
+                         vmin=-z_RLlower_thresh.max(), vmax=z_RLlower_thresh.max(),
+                         cmap='bwr')
 
 #convert into a `Dataset`
 DS = cortex.Dataset(polar=vrgba, ecc=vecc, size=vsize, 
