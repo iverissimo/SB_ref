@@ -294,6 +294,70 @@ for i in range(len(soma_labels_1D)):#all_soma_1D)):
 soma_labels = np.reshape(soma_labels_1D,face_zscore.shape) #back to original shape   
 soma_zvals = np.reshape(soma_zval_1D,face_zscore.shape) #back to original shape       
 
+
+# combine finger z scores for each hand
+
+all_contrasts = {'upper_limb':['lhand_fing1','lhand_fing2','lhand_fing3','lhand_fing4','lhand_fing5',
+             'rhand_fing1','rhand_fing2','rhand_fing3','rhand_fing4','rhand_fing5'],
+             'lower_limb':['lleg','rleg'],
+             'face':['eyes','eyebrows','tongue','mouth']}
+
+Lhand_fing_zscore = [] # load and append each finger z score in left hand list
+Rhand_fing_zscore = [] # load and append each finger z score in right hand list
+
+Lhand_fing_zscore_1D = []
+Rhand_fing_zscore_1D = []
+
+print('Loading data for all fingers and appending in list')
+
+for i in range(5):
+    
+    Ldata = nb.load(soma_dir+'z_%s-all_lhand_contrast.nii.gz' %(all_contrasts['upper_limb'][i])).get_data()
+    Rdata = nb.load(soma_dir+'z_%s-all_rhand_contrast.nii.gz' %(all_contrasts['upper_limb'][i+5])).get_data()
+   
+    Lhand_fing_zscore.append(Ldata)
+    Lhand_fing_zscore_1D.append(Ldata.ravel())
+    
+    Rhand_fing_zscore.append(Rdata)
+    Rhand_fing_zscore_1D.append(Rdata.ravel())
+
+# choose highest z-score to label voxel with
+# gives out colormap for all fingers of each hand separetely 
+print('Labelling finger map')
+Lhand_label_1D = np.zeros(Lhand_fing_zscore_1D[0].shape) # set at 0 whatever is outside thresh
+Lhand_zval_1D = np.zeros(Lhand_fing_zscore_1D[0].shape) # set at 0 whatever is outside thresh
+
+Rhand_label_1D = np.zeros(Rhand_fing_zscore_1D[0].shape) # set at 0 whatever is outside thresh
+Rhand_zval_1D = np.zeros(Rhand_fing_zscore_1D[0].shape) # set at 0 whatever is outside thresh
+
+col_vals = np.arange(0.1,1.1,0.2) # linearly spaced array of values, to use for color distinction in 5 col map
+
+for i in range(len(Lhand_label_1D)):
+    
+    Lzvals = []
+    Rzvals = []
+    for j in range(5):
+        Lzvals.append(Lhand_fing_zscore_1D[j][i]) # list of zvals for each finger in same voxel of left hand
+        Rzvals.append(Rhand_fing_zscore_1D[j][i]) # list of zvals for each finger in same voxel
+    
+    max_Lzvals = max(Lzvals)
+    max_Rzvals = max(Rzvals)
+    
+    if max_Lzvals>2.5: #z_threshold: #if bigger than thresh
+        Lhand_zval_1D[i] = max_Lzvals #take max value for voxel, that will be the label shown
+        Lhand_label_1D[i] = col_vals[np.argmax(Lzvals)]
+        
+    if max_Rzvals>2.5: #z_threshold: #if bigger than thresh
+        Rhand_zval_1D[i] = max_Rzvals #take max value for voxel, that will be the label shown
+        Rhand_label_1D[i] = col_vals[np.argmax(Rzvals)]
+
+Lhand_labels = np.reshape(Lhand_label_1D,Lhand_fing_zscore[0].shape) #back to original shape   
+Lhand_zvals = np.reshape(Lhand_zval_1D,Lhand_fing_zscore[0].shape) #back to original shape  
+
+Rhand_labels = np.reshape(Rhand_label_1D,Rhand_fing_zscore[0].shape) #back to original shape   
+Rhand_zvals = np.reshape(Rhand_zval_1D,Rhand_fing_zscore[0].shape) #back to original shape  
+
+
 #
 # NOT WORKING PROPERLY, NEED TO FIGURE OUT HOW TO ADD ALPHA CHANNEL
 #
@@ -329,11 +393,21 @@ v_combined = cortex.Volume2D(soma_labels.T, soma_zvals.T, 'sub-'+sub_num, 'fmrip
                            vmin=0, vmax=1,
                            vmin2=-1, vmax2=5, cmap='autumnblack_alpha_2D')#BROYG_2D')#'my_autumn')
 
+# all fingers in hand combined
+v_Lfingers_combined = cortex.Volume2D(Lhand_labels.T, Lhand_zvals.T, 'sub-'+sub_num, 'fmriprep_T1',
+                           vmin=0, vmax=1,
+                           vmin2=0, vmax2=5, cmap='BROYG_2D')#'my_autumn')
+
+v_Rfingers_combined = cortex.Volume2D(Rhand_labels.T, Rhand_zvals.T, 'sub-'+sub_num, 'fmriprep_T1',
+                           vmin=0, vmax=1,
+                           vmin2=0, vmax2=5, cmap='BROYG_2D')#'my_autumn')
+
 #convert into a `Dataset`
 DS = cortex.Dataset(polar=vrgba, ecc=vecc, size=vsize, 
                     amplitude=vbeta, baseline=vbaseline, rsq=vrsq, mean_epi=mean_epi,
                     face=v_face,upper_limb=v_upper,lower_limb=v_lower,
-                    RvsL_upper=rl_upper,RvsL_lower=rl_lower,comb_FUL=v_combined)
+                    RvsL_upper=rl_upper,RvsL_lower=rl_lower,comb_FUL=v_combined,
+                    Lhand=v_Lfingers_combined,Rhand=v_Rfingers_combined)
 # save in prf params dir
 #DS.save(os.path.join(output_dir, 'pycortex_ds.h5'))
 
