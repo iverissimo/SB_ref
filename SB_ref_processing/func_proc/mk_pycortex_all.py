@@ -64,13 +64,15 @@ else:
 ## define paths and list of files
         
 if sub_num=='11':
-    raise NameError('Not possible for sub 11, tasks in different sessions, see how to solve this') 
+    ses_num = '02'
+else:
+    ses_num = '01'
       
 # paths to derivatives data (get freesurfer volumes), output and mean functionals
-fmriprep_func_dir = base_dir+'fmriprep/sub-'+sub_num+'/ses-01/func/'
+fmriprep_func_dir = base_dir+'fmriprep/sub-'+sub_num+'/ses-'+ses_num+'/func/'
 fmriprep_anat_dir = base_dir+'fmriprep/sub-'+sub_num+'/anat/'
 fs_dir = base_dir+'freesurfer/'
-median_dir = base_dir+'post_fmriprep/sub-'+sub_num+'/ses-01/func/median/'
+median_dir = base_dir+'post_fmriprep/sub-'+sub_num+'/ses-'+ses_num+'/func/median/'
 
     
 # compute mean boldref epi and save it ###
@@ -306,26 +308,26 @@ soma_zvals = np.reshape(soma_zval_1D,face_zscore.shape) #back to original shape
 
 # volume for face, upper and lower limb zscore
 v_face =  cortex.Volume(face_zscore.T, 'sub-'+sub_num, 'fmriprep_T1',
-                           vmin=z_threshold, vmax=face_zscore.max(),
+                           vmin=z_threshold, vmax=5,
                            cmap='BuGn')
 v_upper =  cortex.Volume(upper_zscore.T, 'sub-'+sub_num, 'fmriprep_T1',
-                           vmin=z_threshold, vmax=upper_zscore.max(),
+                           vmin=z_threshold, vmax=5,
                            cmap='Blues')
 v_lower =  cortex.Volume(lower_zscore.T, 'sub-'+sub_num, 'fmriprep_T1',
-                           vmin=z_threshold, vmax=lower_zscore.max(),
+                           vmin=z_threshold, vmax=5,
                            cmap='OrRd')
 # left vs right
 rl_upper = cortex.Volume(z_RLupper_thresh.T, 'sub-'+sub_num, 'fmriprep_T1',
-                         vmin=-z_RLupper_thresh.max(), vmax=z_RLupper_thresh.max(),
+                         vmin=-5, vmax=5,
                          cmap='bwr')
 rl_lower = cortex.Volume(z_RLlower_thresh.T, 'sub-'+sub_num, 'fmriprep_T1',
-                         vmin=-z_RLlower_thresh.max(), vmax=z_RLlower_thresh.max(),
+                         vmin=-5, vmax=5,
                          cmap='bwr')
 
 # all somas combined
 v_combined = cortex.Volume2D(soma_labels.T, soma_zvals.T, 'sub-'+sub_num, 'fmriprep_T1',
                            vmin=0, vmax=1,
-                           vmin2=-1, vmax2=soma_zvals.max(), cmap='autumnblack_alpha_2D')#BROYG_2D')#'my_autumn')
+                           vmin2=-1, vmax2=5, cmap='autumnblack_alpha_2D')#BROYG_2D')#'my_autumn')
 
 #convert into a `Dataset`
 DS = cortex.Dataset(polar=vrgba, ecc=vecc, size=vsize, 
