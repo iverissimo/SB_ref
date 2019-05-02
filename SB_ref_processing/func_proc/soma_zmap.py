@@ -93,6 +93,8 @@ events.sort()
 
 # high pass filter all runs and save 
 
+print('High pass filtering runs')
+
 filenames_sg = []
 for j in range(len(filenames)):
     
@@ -102,6 +104,8 @@ for j in range(len(filenames)):
     os.rename(file_sg, output_dir+os.path.basename(file_sg))
 
 # do same for confounds
+
+print('High pass filtering confounds')
 
 all_confs = []
 
@@ -126,7 +130,9 @@ for j in range(len(confounds)):
     
 
 # Append all events in same dataframe
-    
+
+print('Loading events')
+
 all_events = []
 for e in range(len(events)):
     
@@ -155,11 +161,15 @@ fmri_glm = FirstLevelModel(t_r=TR,
 
 all_sg_soma = [output_dir+filenames_sg[s] for s in range(len(filenames_sg))]
 
+print('Fitting GLM...')
+
 fmri_glm = fmri_glm.fit(all_sg_soma, events=all_events, confounds=all_confs)
 
 design_matrix = fmri_glm.design_matrices_[0]
 
 # Compute z-score of contrasts
+
+print('Computing contrasts')
 
 all_contrasts = {'upper_limb':['lhand_fing1','lhand_fing2','lhand_fing3','lhand_fing4','lhand_fing5',
              'rhand_fing1','rhand_fing2','rhand_fing3','rhand_fing4','rhand_fing5'],
@@ -174,6 +184,26 @@ for index, (contrast_id, contrast_val) in enumerate(all_contrasts.items()):
     
     z_map = fmri_glm.compute_contrast(contrast, output_type='z_score')
     z_map.to_filename(output_dir+'z_%s_contrast.nii.gz' % contrast_id)
+
+
+# compare each finger with the others of same hand
+bhand_label = ['lhand','rhand']
+for j,lbl in enumerate(bhand_label):
+    
+    hand_label = [s for s in all_contrasts['upper_limb'] if lbl in s]
+    
+    for index, label in enumerate(hand_label):
+
+        contrast = np.zeros(len(design_matrix.columns)) # array of zeros with len = num predictors
+    
+        for i in range(len(contrast)):
+            if design_matrix.columns[i]==label: 
+                contrast[i] = 1
+            elif lbl in design_matrix.columns[i]: # -1 to other fingers of same hand
+                contrast[i] = -1
+                
+        z_map = fmri_glm.compute_contrast(contrast, output_type='z_score')
+        z_map.to_filename(output_dir+'z_%s-all_%s_contrast.nii.gz' % (label,lbl))
     
 
 #compare left vs right
@@ -193,4 +223,5 @@ for j in range(len(rl_limb)):
                                   output_type='z_score')
     z_map.to_filename(output_dir+'z_right-left_'+rl_limb[j]+'_contrast.nii.gz')
 
+print('Success!')
 
